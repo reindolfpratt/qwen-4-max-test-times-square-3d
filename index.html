@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Times Square — 3D</title>
+    <script>
+      window.__errors = [];
+      window.addEventListener('error', e => { window.__errors.push((e.message || 'error') + ' @' + (e.filename || '') + ':' + e.lineno); });
+      window.addEventListener('unhandledrejection', e => { window.__errors.push('Promise: ' + ((e.reason && e.reason.message) || e.reason)); });
+    </script>
+    <style>
+      :root { color-scheme: dark; }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body { width: 100%; height: 100%; overflow: hidden; background: #05060a; }
+      #app { position: fixed; inset: 0; }
+      canvas { display: block; }
+      #hud {
+        position: fixed; top: 14px; left: 14px; z-index: 10;
+        font: 12px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        color: #e8ecf4; pointer-events: none; user-select: none;
+      }
+      #hud .panel {
+        background: rgba(10,12,18,.62); backdrop-filter: blur(8px);
+        border: 1px solid rgba(255,255,255,.08); border-radius: 10px;
+        padding: 10px 12px; min-width: 190px;
+      }
+      #hud h1 { font-size: 13px; font-weight: 600; letter-spacing: .3px; margin-bottom: 4px; }
+      #hud .row { display: flex; justify-content: space-between; gap: 14px; opacity: .92; }
+      #hud .k { color: #9aa4b8; }
+      #hud .hint { margin-top: 6px; font-size: 11px; color: #8b93a7; }
+      #crosshair {
+        position: fixed; left: 50%; top: 50%; z-index: 9; width: 6px; height: 6px;
+        margin: -3px 0 0 -3px; border-radius: 50%; background: rgba(255,255,255,.85);
+        box-shadow: 0 0 0 1px rgba(0,0,0,.4); pointer-events: none; display: none;
+      }
+      #minimap {
+        position: fixed; top: 14px; right: 14px; z-index: 10;
+        border: 1px solid rgba(255,255,255,.12); border-radius: 10px;
+        background: rgba(8,10,16,.7); display: none;
+      }
+      #toolbar {
+        position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%);
+        z-index: 11; display: flex; gap: 8px;
+        font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      #toolbar button {
+        pointer-events: auto; cursor: pointer; color: #e8ecf4;
+        background: rgba(12,14,20,.72); border: 1px solid rgba(255,255,255,.12);
+        border-radius: 9px; padding: 8px 12px; backdrop-filter: blur(8px);
+        transition: background .15s, border-color .15s;
+      }
+      #toolbar button:hover { background: rgba(30,34,46,.85); border-color: rgba(255,255,255,.25); }
+      #toolbar button.active { border-color: #6ea8ff; color: #cfe0ff; }
+      #overlay {
+        position: fixed; inset: 0; z-index: 20; display: flex; align-items: center; justify-content: center;
+        background: radial-gradient(1200px 700px at 50% 35%, rgba(20,24,38,.55), rgba(4,5,9,.9));
+        font: 14px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #e8ecf4;
+        cursor: pointer; text-align: center;
+      }
+      #overlay .card { max-width: 560px; padding: 34px 40px; }
+      #overlay h2 { font-size: 26px; font-weight: 700; letter-spacing: .4px; margin-bottom: 6px; }
+      #overlay .sub { color: #9aa4b8; margin-bottom: 20px; }
+      #overlay .keys { display: grid; grid-template-columns: auto 1fr; gap: 6px 16px; text-align: left; margin: 0 auto 22px; max-width: 380px; }
+      #overlay .keys b { color: #cfe0ff; font-weight: 600; font-family: ui-monospace, Menlo, monospace; }
+      #overlay .cta { display: inline-block; padding: 11px 22px; border-radius: 10px; background: #2b62d9; color: #fff; font-weight: 600; }
+      #overlay .note { margin-top: 16px; font-size: 11px; color: #6f7789; }
+      #help {
+        position: fixed; bottom: 64px; left: 50%; transform: translateX(-50%); z-index: 11;
+        display: none; max-width: 520px; padding: 14px 18px; border-radius: 12px;
+        background: rgba(10,12,18,.82); border: 1px solid rgba(255,255,255,.1);
+        font: 12px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; color: #c7cede;
+        backdrop-filter: blur(8px);
+      }
+      #help b { color: #cfe0ff; font-family: ui-monospace, Menlo, monospace; }
+      #loading { position: fixed; inset: 0; z-index: 30; display: flex; align-items: center; justify-content: center; background: #05060a; color: #8b93a7; font: 13px -apple-system, sans-serif; letter-spacing: .5px; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="loading">BUILDING TIMES SQUARE…</div>
+    <div id="crosshair"></div>
+    <canvas id="minimap" width="180" height="180"></canvas>
+    <div id="hud">
+      <div class="panel">
+        <h1>TIMES SQUARE · NYC</h1>
+        <div class="row"><span class="k">FPS</span><span id="fps">—</span></div>
+        <div class="row"><span class="k">Mode</span><span id="mode">Day</span></div>
+        <div class="row"><span class="k">View</span><span id="view">First-person</span></div>
+        <div class="row"><span class="k">Pos</span><span id="pos">—</span></div>
+        <div class="hint">Click to walk · H for help</div>
+      </div>
+    </div>
+    <div id="toolbar">
+      <button id="btn-night" title="Toggle day/night (N)">🌙 Night</button>
+      <button id="btn-audio" title="Toggle audio (M)">🔇 Audio</button>
+      <button id="btn-view" title="Toggle orbit view (V)">🛰 Orbit</button>
+      <button id="btn-ssao" title="Toggle SSAO (P)">SSAO</button>
+      <button id="btn-map" title="Toggle minimap (G)">🗺 Map</button>
+    </div>
+    <div id="help">
+      <b>WASD / Arrows</b> move · <b>Mouse</b> look · <b>Shift</b> sprint · <b>Space</b> jump<br/>
+      <b>N</b> day/night · <b>V</b> orbit view · <b>M</b> audio · <b>P</b> SSAO · <b>G</b> minimap · <b>H</b> help · <b>Esc</b> release mouse
+    </div>
+    <div id="overlay">
+      <div class="card">
+        <h2>Times Square</h2>
+        <div class="sub">A human-scale 3D recreation · Broadway &amp; 7th Ave · 42nd–47th St</div>
+        <div class="keys">
+          <b>WASD / ↑↓←→</b><span>Walk</span>
+          <b>Mouse</b><span>Look around</span>
+          <b>Shift</b><span>Sprint</span>
+          <b>Space</b><span>Jump</span>
+          <b>N</b><span>Day / night</span>
+          <b>V</b><span>Orbit overview</span>
+        </div>
+        <span class="cta">Click to enter</span>
+        <div class="note">100% procedural · no network calls · Three.js + WebGL2</div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
